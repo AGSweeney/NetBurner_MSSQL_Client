@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insert / Update SQL Data</title>
+<!--CPPCALL ShowAutoRefresh write.html -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block"><h1>NetBurner MSSQL Client</h1><span class="meta">NANO54415 · <!--CPPCALL ShowHeaderTarget --></span></div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <a class="nb-nav-link" href="index.html">Dashboard</a>
+    <a class="nb-nav-link" href="configure.html">Configure</a>
+    <a class="nb-nav-link" href="browse.html">Browse</a>
+    <a class="nb-nav-link nb-nav-link-active" href="write.html">Insert / Update</a>
+    <a class="nb-nav-link" href="results.html">Results</a>
+    <a class="nb-nav-link" href="diagnostics.html">Diagnostics</a>
+  </div></nav>
+</header>
+<main class="nb-page nb-page-compact">
+  <!--CPPCALL ShowWritePageInit -->
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-card nb-query-card<!--CPPCALL ShowQuerySectionClass -->">
+    <div class="nb-card-header"><span>Insert / Update Data</span></div>
+    <!--CPPCALL ShowQueryLockBanner -->
+    <input type="hidden" id="connected-database" value="<!--CPPCALL ShowConnectedDatabase -->">
+    <input type="hidden" id="connected-table" value="<!--CPPCALL WebFormTable -->">
+    <form class="nb-form nb-write-context" id="write-context-form" action="setwritetable" method="post">
+      <input type="hidden" name="return_to" value="write.html">
+      <div class="nb-card-header nb-card-header-sub"><span>Working Table</span></div>
+      <p class="nb-inline-help">Choose the table for guided insert and update operations. Tables and columns refresh automatically when needed.</p>
+      <div class="nb-form-grid nb-form-grid-query">
+        <label class="nb-field"><span>Database</span><input type="text" value="<!--CPPCALL ShowConnectedDatabase -->" readonly></label>
+        <div class="nb-field"><span>Table</span><!--CPPCALL ShowWriteTableControl --></div>
+      </div>
+      <div class="nb-inline-actions">
+        <button type="submit" class="nb-btn">Load Columns</button>
+        <button type="submit" class="nb-btn nb-btn-secondary nb-btn-inline" formaction="browsetables" formmethod="post" formnovalidate>Refresh Tables</button>
+      </div>
+      <span class="nb-field-hint"><!--CPPCALL ShowWriteTableBrowseStatus --></span>
+      <span class="nb-field-hint"><!--CPPCALL ShowWriteColumnStatus --></span>
+    </form>
+    <div class="nb-write-preview"<!--CPPCALL ShowPendingPreviewHidden -->>
+      <div class="nb-card-header nb-card-header-sub"><span>Pending Write Preview</span></div>
+      <p class="nb-inline-help">This operation has not run yet. Review the SQL, then confirm or cancel.</p>
+      <!--CPPCALL ShowPendingMutation -->
+      <form class="nb-form-actions" action="confirmmutation" method="post">
+        <button type="submit" class="nb-btn"<!--CPPCALL ShowPendingConfirmDisabled -->>Confirm and Execute</button>
+        <button type="submit" class="nb-btn nb-btn-secondary" formaction="cancelmutation" formmethod="post">Cancel</button>
+      </form>
+    </div>
+    <details class="nb-collapsible-card" id="write-insert-panel">
+      <summary>Guided Insert</summary>
+      <div class="nb-collapsible-body">
+        <form class="nb-form" id="insert-form" action="previewinsert" method="post">
+          <input type="hidden" name="use_table_builder" value="on">
+          <!--CPPCALL ShowWriteColumnInputs -->
+          <div class="nb-form-actions"><button type="submit" class="nb-btn">Preview Insert</button></div>
+        </form>
+      </div>
+    </details>
+    <details class="nb-collapsible-card" id="write-update-panel">
+      <summary>Guided Update</summary>
+      <div class="nb-collapsible-body">
+        <form class="nb-form" id="update-form" action="previewupdate" method="post">
+          <input type="hidden" name="use_table_builder" value="on">
+          <p class="nb-inline-help">The WHERE column identifies the row and is never updated in guided mode. Fill only the value fields you want to change; blank fields are ignored.</p>
+          <div class="nb-write-grid">
+            <label class="nb-field"><span>WHERE column</span><select name="where_column"><!--CPPCALL ShowWriteWhereColumnOptions --></select></label>
+            <label class="nb-field"><span>WHERE value</span><input type="text" name="where_value" placeholder="Required key value"></label>
+          </div>
+          <!--CPPCALL ShowUpdateColumnInputs -->
+          <div class="nb-form-actions"><button type="submit" class="nb-btn">Preview Update</button></div>
+        </form>
+      </div>
+    </details>
+    <details class="nb-collapsible-card" id="write-custom-panel">
+      <summary>Custom Write SQL</summary>
+      <div class="nb-collapsible-body">
+        <form class="nb-form" id="write-sql-form" action="previewwritesql" method="post">
+          <label class="nb-field nb-field-wide"><span>INSERT or UPDATE SQL</span><textarea name="write_sql" rows="5" class="nb-mono" spellcheck="false"></textarea><span class="nb-field-hint">DROP, ALTER, TRUNCATE, EXEC and other dangerous terms are blocked.</span></label>
+          <div class="nb-form-actions"><button type="submit" class="nb-btn">Preview Custom Write</button></div>
+        </form>
+      </div>
+    </details>
+    <label class="nb-field nb-field-wide nb-write-sql-preview">
+      <span id="write-preview-label">SQL Preview</span>
+      <textarea id="write-preview-field" rows="5" class="nb-mono nb-readonly" readonly spellcheck="false"><!--CPPCALL WebFormWritePreview --></textarea>
+      <span class="nb-field-hint" id="write-preview-hint">Expand a section above and fill fields to preview generated SQL here before submitting.</span>
+    </label>
+  </div>
+</main>
+<footer class="nb-footer"><span>NetBurner MSSQL Client</span></footer>
+<!--CPPCALL ShowFormScript -->
+</body>
+</html>

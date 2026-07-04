@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browse SQL Data</title>
+<!--CPPCALL ShowAutoRefresh browse.html -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>NetBurner MSSQL Client</h1>
+      <span class="meta">NANO54415 · <!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <a class="nb-nav-link" href="index.html">Dashboard</a>
+    <a class="nb-nav-link" href="configure.html">Configure</a>
+    <a class="nb-nav-link nb-nav-link-active" href="browse.html">Browse</a>
+    <a class="nb-nav-link" href="write.html">Insert / Update</a>
+    <a class="nb-nav-link" href="results.html">Results</a>
+    <a class="nb-nav-link" href="diagnostics.html">Diagnostics</a>
+  </div></nav>
+</header>
+<main class="nb-page nb-page-compact">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-card nb-query-card<!--CPPCALL ShowQuerySectionClass -->">
+    <div class="nb-card-header"><span><span class="nb-step-num">2</span> Browse Data</span></div>
+    <!--CPPCALL ShowQueryLockBanner -->
+    <form class="nb-form nb-browse-mode-builder" id="query-form" action="runquery" method="post">
+      <input type="hidden" id="connected-database" value="<!--CPPCALL ShowConnectedDatabase -->">
+      <input type="checkbox" name="use_table_builder" id="use-table-builder" value="on" class="nb-hidden-control" <!--CPPCALL WebFormUseTableBuilderChecked -->>
+      <div class="nb-mode-tabs" role="group" aria-label="Query mode">
+        <button type="button" class="nb-mode-tab nb-mode-active" data-query-mode="builder" aria-pressed="true">Builder</button>
+        <button type="button" class="nb-mode-tab" data-query-mode="custom" aria-pressed="false">Custom SQL</button>
+      </div>
+      <div id="builder-panel" class="nb-mode-panel">
+        <div class="nb-step-block">
+          <div class="nb-step-label">Table or view</div>
+          <!--CPPCALL ShowTableControl -->
+          <div class="nb-inline-actions"><button type="submit" class="nb-btn nb-btn-secondary nb-btn-inline" formaction="browsetables" formmethod="post" formnovalidate>Refresh Tables</button></div>
+          <span class="nb-field-hint"><!--CPPCALL ShowTableBrowseStatus --></span>
+        </div>
+        <div class="nb-form-grid nb-form-grid-query">
+          <div class="nb-field">
+            <!--CPPCALL ShowColumnControl -->
+            <div class="nb-inline-actions"><button type="submit" class="nb-btn nb-btn-secondary nb-btn-inline" formaction="browsecolumns" formmethod="post" formnovalidate>Refresh Columns</button></div>
+            <span class="nb-field-hint"><!--CPPCALL ShowColumnBrowseStatus --></span>
+          </div>
+          <label class="nb-field nb-field-topn"><span>Maximum rows</span><select name="top_n" id="top-n-field"><!--CPPCALL ShowTopNOptions --></select></label>
+        </div>
+        <div class="nb-builder-rules">
+          <div class="nb-rule-row">
+            <label class="nb-field"><span>Filter column</span><!--CPPCALL ShowFilterColumnControl --></label>
+            <label class="nb-field"><span>Operator</span><select name="filter_op" id="filter-op-field"><option value="">No filter</option><!--CPPCALL ShowFilterOpOptions --></select></label>
+            <label class="nb-field"><span>Value</span><input type="text" name="filter_value" id="filter-value-field" value="<!--CPPCALL WebFormFilterValue -->" placeholder="Filter value"></label>
+          </div>
+          <div class="nb-rule-row nb-rule-row-sort">
+            <label class="nb-field"><span>Sort column</span><!--CPPCALL ShowSortColumnControl --></label>
+            <label class="nb-field"><span>Direction</span><select name="sort_desc" id="sort-desc-field"><option value="asc">Ascending</option><option value="desc"<!--CPPCALL ShowSortDescSelected -->>Descending</option></select></label>
+          </div>
+        </div>
+      </div>
+      <div id="custom-panel" class="nb-mode-panel" hidden>
+        <p class="nb-inline-help">Write a read-only SELECT statement below.</p>
+      </div>
+      <div id="query-sql-section" class="nb-query-sql-section">
+        <label class="nb-field nb-field-wide">
+          <span id="sql-preview-label">Generated SQL</span>
+          <textarea name="query" id="query-field" rows="4" class="nb-mono" spellcheck="false"><!--CPPCALL WebFormQuery --></textarea>
+          <span class="nb-field-hint" id="sql-preview-hint">Read-only preview from Builder controls.</span>
+        </label>
+      </div>
+      <div class="nb-form-actions">
+        <button type="submit" class="nb-btn">Run Query</button>
+        <a class="nb-btn nb-btn-secondary" href="results.html">View Results</a>
+      </div>
+    </form>
+  </div>
+</main>
+<footer class="nb-footer"><span>NetBurner MSSQL Client</span></footer>
+<!--CPPCALL ShowFormScript -->
+</body>
+</html>

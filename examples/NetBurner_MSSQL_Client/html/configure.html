@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configure SQL Connection</title>
+<!--CPPCALL ShowAutoRefresh -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>NetBurner MSSQL Client</h1>
+      <span class="meta">NANO54415 · <!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <a class="nb-nav-link" href="index.html">Dashboard</a>
+    <a class="nb-nav-link nb-nav-link-active" href="configure.html">Configure</a>
+    <a class="nb-nav-link" href="browse.html">Browse</a>
+    <a class="nb-nav-link" href="write.html">Insert / Update</a>
+    <a class="nb-nav-link" href="results.html">Results</a>
+    <a class="nb-nav-link" href="diagnostics.html">Diagnostics</a>
+  </div></nav>
+</header>
+<main class="nb-page nb-page-compact">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-card" id="connection-card">
+    <div class="nb-card-header"><span><span class="nb-step-num">1</span> Connection</span></div>
+    <div id="connection-summary" class="nb-connection-summary-wrap"<!--CPPCALL ShowConnectionSummaryHidden -->>
+      <!--CPPCALL ShowConnectionSummary -->
+    </div>
+    <div id="connection-summary-actions" class="nb-form-actions nb-summary-actions"<!--CPPCALL ShowConnectionSummaryActionsHidden -->>
+      <button type="button" class="nb-btn nb-btn-secondary" id="change-connection-btn"
+              onclick="document.getElementById('connection-summary').hidden=true;document.getElementById('connection-summary-actions').hidden=true;document.getElementById('connection-form-panel').hidden=false;">Change Connection</button>
+      <button type="submit" class="nb-btn" form="connection-form" formaction="testconnection">Test Again</button>
+      <button type="submit" class="nb-btn nb-btn-secondary" form="connection-form" formaction="savesettings">Save Settings</button>
+    </div>
+    <div id="connection-form-panel" class="nb-connection-form-wrap"<!--CPPCALL ShowConnectionFormHidden -->>
+      <p class="nb-field-hint nb-connection-status"><!--CPPCALL ShowConnectionTestStatus --></p>
+      <form class="nb-form" id="connection-form" action="testconnection" method="post">
+        <div class="nb-form-grid nb-form-grid-creds">
+          <label class="nb-field"><span>Server</span><input type="text" name="server" value="<!--CPPCALL WebFormServer -->" required></label>
+          <label class="nb-field nb-field-port"><span>Port</span><input type="number" name="port" min="1" max="65535" value="<!--CPPCALL WebFormPort -->" required></label>
+          <label class="nb-field"><span>User</span><input type="text" name="user" value="<!--CPPCALL WebFormUser -->" required></label>
+          <label class="nb-field"><span>Password</span><input type="password" name="password" placeholder="Stored password unchanged"><span class="nb-field-hint">Leave blank to keep the current password.</span></label>
+        </div>
+        <div class="nb-step-block">
+          <div class="nb-step-label">Database</div>
+          <!--CPPCALL ShowDatabaseControl -->
+          <div class="nb-inline-actions"><button type="submit" class="nb-btn nb-btn-secondary nb-btn-inline" formaction="browsedatabases" formmethod="post" formnovalidate>Refresh Databases</button></div>
+          <span class="nb-field-hint"><!--CPPCALL ShowDatabaseBrowseStatus --></span>
+        </div>
+        <div class="nb-form-actions">
+          <button type="submit" class="nb-btn">Test Connection</button>
+          <!--CPPCALL ShowSaveSettingsButton -->
+        </div>
+        <div class="nb-advanced-actions"><!--CPPCALL ShowClearNvButton --></div>
+      </form>
+    </div>
+  </div>
+</main>
+<footer class="nb-footer"><span>NetBurner MSSQL Client</span></footer>
+<!--CPPCALL ShowFormScript -->
+</body>
+</html>

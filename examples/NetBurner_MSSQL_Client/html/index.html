@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetBurner MSSQL Client</title>
+<!--CPPCALL ShowAutoRefresh -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>NetBurner MSSQL Client</h1>
+      <span class="meta">NANO54415 · <!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <a class="nb-nav-link nb-nav-link-active" href="index.html">Dashboard</a>
+    <a class="nb-nav-link" href="configure.html">Configure</a>
+    <a class="nb-nav-link" href="browse.html">Browse</a>
+    <a class="nb-nav-link" href="write.html">Insert / Update</a>
+    <a class="nb-nav-link" href="results.html">Results</a>
+    <a class="nb-nav-link" href="diagnostics.html">Diagnostics</a>
+  </div></nav>
+</header>
+<main class="nb-page nb-page-compact">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-dashboard-grid">
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>Configure</span></div>
+      <p>Set SQL Server connection details, test credentials, and save validated settings to AppData.</p>
+      <a class="nb-btn" href="configure.html">Open Configure</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>Browse Data</span></div>
+      <p>Refresh databases, tables, columns, build SELECT queries, and inspect current SQL Server data.</p>
+      <a class="nb-btn" href="browse.html">Open Browse</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>Insert / Update</span></div>
+      <p>Stage guided inserts, guided updates, or custom write SQL. Writes require confirmation before execution.</p>
+      <a class="nb-btn nb-btn-secondary" href="write.html">Open Writes</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>Results &amp; Diagnostics</span></div>
+      <p>Review the latest result set, export CSV, and inspect connection/query diagnostics.</p>
+      <a class="nb-btn nb-btn-secondary" href="results.html">Open Results</a>
+    </div>
+  </div>
+</main>
+<footer class="nb-footer"><span>NetBurner MSSQL Client</span></footer>
+</body>
+</html>

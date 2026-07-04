@@ -1,0 +1,32 @@
+# NetBurner build artifacts
+**/obj/
+**/*.o
+**/*.elf
+**/*.s19
+**/*.bin
+**/*.a
+**/*.map
+**/*.d
+
+# Generated web assets (rebuilt by comphtml)
+examples/NetBurner_MSSQL_Client/src/htmldata.cpp
+examples/TDSLite_NANO54415_Test/
+
+# Local scratch / debug captures
+tmp_*
+live_*
+*_verify.html
+
+# Secrets (configure via web UI or build flags)
+**/sql_config.local.h
+.env
+.env.*
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+Desktop.ini
+.DS_Store
