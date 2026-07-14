@@ -28,8 +28,8 @@ Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
   <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
   <div class="nb-card">
     <div class="nb-card-header"><span>Gateway overview</span></div>
-    <p>Level-held trigger/ACK handshake. Events are queued to onboard EFFS flash before ACK
-       (RAM fallback if flash is unavailable). SQL drains asynchronously.</p>
+    <p>Level-held trigger/ACK handshake. Events are queued in RAM before ACK
+       (volatile while powered). SQL drains asynchronously.</p>
     <!--CPPCALL ShowGatewayOverview -->
   </div>
 </main>

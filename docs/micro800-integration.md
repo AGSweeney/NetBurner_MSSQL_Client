@@ -185,12 +185,9 @@ appended to the gateway queue (before SQL drain). The main loop polls the gatewa
 `SqlRuntimePoll` so a blocking INSERT on UserMain cannot delay ACK. SQL drain remains asynchronous
 relative to the PLC handshake.
 
-**Durable queue:** with `LIBS_GATEWAY=1`, the example mounts **EFFS-STD** onboard flash and stores
-events under `SQLQUEUE/` (segmented files + `META.DAT`). `gateway.mak` pulls in `effs_std.mak`, which
-sets `COMPCODEFLAGS` (e.g. MOD5441X reserves ~1 MB for the FS) and links `libStdFFile.a`. On first
-boot, a failed mount may format the EFFS region (destructive to any prior FS contents in that
-partition). If mount fails at runtime, the queue falls back to a RAM ring and survives only while
-powered.
+**Event queue:** with `LIBS_GATEWAY=1`, captured events are held in an **in-RAM ring buffer** until
+SQL drain completes. ACK is asserted only after `QueueAppend` succeeds. The queue does not survive
+reboot or power loss.
 
 Configure PLCs and SQL mappings from the gateway web UI after flashing a gateway build.
 
