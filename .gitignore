@@ -8,6 +8,10 @@
 **/*.map
 **/*.d
 
+# Checked-in release images (override **/*.bin above)
+!firmwares/
+!firmwares/*.bin
+
 # Generated web assets (rebuilt by comphtml)
 examples/NetBurner_MSSQL_Client/src/htmldata.cpp
 examples/TDSLite_NANO54415_Test/

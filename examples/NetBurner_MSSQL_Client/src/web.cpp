@@ -969,8 +969,19 @@ void ShowHeaderStatus(int sock, PCSTR /*url*/)
         return;
     }
 
+    if (SqlRuntimeIsBrowsingDatabases() || SqlRuntimeIsBrowsingTables() ||
+        SqlRuntimeIsBrowsingColumns()) {
+        fdprintf(sock, "<span class=\"nb-header-status nb-header-status-busy\">Loading catalog</span>");
+        return;
+    }
+
     if (SqlRuntimeIsRunningQuery()) {
         fdprintf(sock, "<span class=\"nb-header-status nb-header-status-busy\">Query running</span>");
+        return;
+    }
+
+    if (SqlRuntimeIsExecutingMutation()) {
+        fdprintf(sock, "<span class=\"nb-header-status nb-header-status-busy\">Gateway writing</span>");
         return;
     }
 
@@ -1007,6 +1018,36 @@ void ShowHeaderTarget(int sock, PCSTR /*url*/)
         fdprintf(sock, ":%u", static_cast<unsigned>(cfg.port));
     }
 }
+
+#ifndef NB_GATEWAY_MICRO800
+static void WriteNavLink(int sock, PCSTR url, const char *href, const char *label)
+{
+    const bool active = (url && strstr(url, href) != nullptr);
+    fdprintf(sock, "<a class=\"nb-nav-link%s\" href=\"%s\">%s</a>", active ? " nb-nav-link-active" : "", href,
+             label);
+}
+
+void ShowAppNav(int sock, PCSTR url)
+{
+    const bool onOther =
+        url && (strstr(url, "configure") || strstr(url, "browse") || strstr(url, "write") ||
+                strstr(url, "results") || strstr(url, "diagnostic") || strstr(url, "confirm"));
+    const bool dash = !onOther;
+    fdprintf(sock, "<a class=\"nb-nav-link%s\" href=\"index.html\">Dashboard</a>",
+             dash ? " nb-nav-link-active" : "");
+    WriteNavLink(sock, url, "configure.html", "Configure");
+    WriteNavLink(sock, url, "browse.html", "Browse");
+    WriteNavLink(sock, url, "write.html", "Insert / Update");
+    WriteNavLink(sock, url, "results.html", "Results");
+    WriteNavLink(sock, url, "diagnostics.html", "Diagnostics");
+}
+
+void ShowGatewayNavLinks(int /*sock*/, PCSTR /*url*/) {}
+void ShowGatewayOverview(int sock, PCSTR /*url*/)
+{
+    writestring(sock, "<p>Gateway build not enabled.</p>");
+}
+#endif
 
 static bool IsUnsupportedCell(const char * text)
 {
@@ -1046,6 +1087,11 @@ void ShowResultsBanner(int sock, PCSTR /*url*/)
 
     if (SqlRuntimeIsRunningQuery()) {
         fdprintf(sock, "<p class=\"nb-results-banner nb-results-running\">Running query...</p>");
+        return;
+    }
+
+    if (SqlRuntimeIsExecutingMutation()) {
+        fdprintf(sock, "<p class=\"nb-results-banner nb-results-running\">Writing to SQL...</p>");
         return;
     }
 
@@ -1483,6 +1529,11 @@ void ShowQueryStatus(int sock, PCSTR /*url*/)
 
     if (SqlRuntimeIsRunningQuery()) {
         fdprintf(sock, "Running query...");
+        return;
+    }
+
+    if (SqlRuntimeIsExecutingMutation()) {
+        fdprintf(sock, "Gateway writing to SQL...");
         return;
     }
 

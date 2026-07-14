@@ -39,6 +39,12 @@ static bool IsSafeDatabaseNameChar(char c)
 
 }
 
+// SQL Server bracketed identifiers may include spaces (e.g. "DATA A").
+static bool IsSafeColumnNameChar(char c)
+{
+    return IsSafeTableNameChar(c) || c == ' ' || c == '#' || c == '$';
+}
+
 
 
 static bool CopyCatalogName(char * dst, tdsl::size_t cap, const char * text,
@@ -288,7 +294,7 @@ bool SqlCatalogTablesMatchDatabase(const char * database)
 
     if (!g_catalog.ready || !g_catalog.success) {
 
-        return true;
+        return false;
 
     }
 
@@ -325,7 +331,7 @@ bool SqlColumnCatalogMatches(const char * database, const char * table)
     }
 
     if (!g_column_catalog.ready || !g_column_catalog.success) {
-        return true;
+        return false;
     }
 
     return strcmp(g_column_catalog.database, database) == 0 &&
@@ -457,12 +463,15 @@ static void SqlColumnCatalogRowCallbackImpl(void * user_ptr,
     ReadColumnAsString(type_buf, sizeof(type_buf), 1, colmd, row);
 
     if (!CopyCatalogName(catalog.column_names[catalog.column_count], SQL_CATALOG_NAME_LEN,
-                         name_buf, IsSafeTableNameChar)) {
+                         name_buf, IsSafeColumnNameChar)) {
         return;
     }
 
-    CopyCatalogName(catalog.column_types[catalog.column_count], SQL_CATALOG_TYPE_LEN,
-                    type_buf, IsSafeTableNameChar);
+    // DATA_TYPE values are simple tokens (int, nvarchar, ...); keep the strict charset.
+    if (!CopyCatalogName(catalog.column_types[catalog.column_count], SQL_CATALOG_TYPE_LEN,
+                         type_buf, IsSafeTableNameChar)) {
+        catalog.column_types[catalog.column_count][0] = '\0';
+    }
 
     ++catalog.column_count;
 }

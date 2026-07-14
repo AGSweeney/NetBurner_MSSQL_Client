@@ -13,6 +13,21 @@
 #include "sql_nv.h"
 #include "sql_results.h"
 
+#ifdef NB_GATEWAY_MICRO800
+#include "gateway/gateway_runtime.h"
+#endif
+
+// Quiet by default for routine browse/query chatter. Failures always log.
+#ifndef SQL_RUNTIME_SERIAL_LOG
+#define SQL_RUNTIME_SERIAL_LOG 0
+#endif
+#if SQL_RUNTIME_SERIAL_LOG
+#define SQL_RT_LOG(...) iprintf(__VA_ARGS__)
+#else
+#define SQL_RT_LOG(...) ((void)0)
+#endif
+#define SQL_RT_FAIL(...) iprintf(__VA_ARGS__)
+
 static sql_runtime_config g_config = {};
 static volatile bool g_busy          = false;
 
@@ -40,10 +55,62 @@ using sql_driver_t = tdsl::detail::tdsl_driver<tdsl::net::tdsl_netimpl_netburner
 static sql_driver_t g_driver(g_net_buf);
 
 static char g_query_buf[SQL_CFG_QUERY_LEN] = {};
+static char g_last_sql_error[192]          = {};
 
-struct sql_busy_guard {
-    sql_busy_guard() { g_busy = true; }
-    ~sql_busy_guard() { g_busy = false; }
+// TDS sends UCS-2 little-endian. ColdFire is big-endian, so do not load as char16_t.
+static void Utf16LeToAscii(const tdsl::span<const char16_t> &in, char *out, size_t outCap)
+{
+    if (!out || outCap == 0) {
+        return;
+    }
+    const auto *bytes = reinterpret_cast<const unsigned char *>(in.data());
+    const tdsl::size_t nbytes = in.size_bytes();
+    size_t n = 0;
+    for (tdsl::size_t i = 0; i + 1 < nbytes && n + 1 < outCap; i += 2) {
+        const unsigned c = static_cast<unsigned>(bytes[i]) |
+                           (static_cast<unsigned>(bytes[i + 1]) << 8);
+        out[n++] = (c >= 32 && c < 127) ? static_cast<char>(c) : '?';
+    }
+    out[n] = '\0';
+}
+
+static void SqlInfoCallback(void * /*user*/, const tdsl::tds_info_token &info)
+{
+    if (!info.is_error()) {
+        return;
+    }
+    char msg[160]{};
+    Utf16LeToAscii(info.msgtext, msg, sizeof(msg));
+    // 2628 = String or binary data would be truncated (value longer than column).
+    if (info.number == 2628u && (msg[0] == '\0' || strspn(msg, "?") == strlen(msg))) {
+        strncpy(msg, "String or binary data would be truncated (value longer than column)",
+                sizeof(msg) - 1);
+        msg[sizeof(msg) - 1] = '\0';
+    }
+    snprintf(g_last_sql_error, sizeof(g_last_sql_error), "SQL #%lu state=%u: %s",
+             static_cast<unsigned long>(info.number), static_cast<unsigned>(info.state),
+             msg[0] ? msg : "(no message)");
+    SQL_RT_FAIL("SqlRuntime: %s\r\n", g_last_sql_error);
+}
+
+static void BindSqlInfoCallback()
+{
+    g_driver.set_info_callback(SqlInfoCallback, nullptr);
+}
+
+static void ClearLastSqlError()
+{
+    g_last_sql_error[0] = '\0';
+}
+
+// Clears busy + job together. Must not clear g_busy while g_browse_job still
+// describes in-flight work — HTTP can race and sticky-busy with job NONE.
+struct sql_run_scope_guard {
+    ~sql_run_scope_guard()
+    {
+        g_browse_job = SQL_BROWSE_NONE;
+        g_busy       = false;
+    }
 };
 
 static tdsl::string_view SqlCStrView(const char * text) noexcept
@@ -66,6 +133,7 @@ static void ResetSqlDriver()
     g_driver.~sql_driver_t();
     memset(g_net_buf, 0, sizeof(g_net_buf));
     new (static_cast<void*>(&g_driver)) sql_driver_t(g_net_buf);
+    BindSqlInfoCallback();
 }
 
 static bool IsSafeSqlIdentifierChar(char c)
@@ -316,8 +384,6 @@ static bool SqlConnect(const sql_runtime_config & cfg,
 
 static void SqlBrowseTablesOnce()
 {
-    sql_busy_guard busy_guard;
-
     ResetSqlDriver();
 
     if (!tdsl::endian_self_test()) {
@@ -341,7 +407,7 @@ static void SqlBrowseTablesOnce()
         return;
     }
 
-    iprintf("SqlRuntime: browsing tables in %s on %s\r\n", cfg.database, cfg.server);
+    SQL_RT_LOG("SqlRuntime: browsing tables in %s on %s\r\n", cfg.database, cfg.server);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
         tdsl::netburner_driver::e_driver_error_code::connection_failed;
@@ -377,7 +443,7 @@ static void SqlBrowseTablesOnce()
                  static_cast<unsigned long>(catalog.table_count), cfg.database);
     }
 
-    iprintf("SqlRuntime: browse complete, %lu table(s)\r\n",
+    SQL_RT_LOG("SqlRuntime: browse complete, %lu table(s)\r\n",
             static_cast<unsigned long>(catalog.table_count));
 }
 
@@ -404,8 +470,6 @@ static bool BuildColumnsQuery(char * dst, tdsl::size_t cap, const sql_runtime_co
 
 static void SqlBrowseColumnsOnce()
 {
-    sql_busy_guard busy_guard;
-
     ResetSqlDriver();
 
     if (!tdsl::endian_self_test()) {
@@ -439,7 +503,7 @@ static void SqlBrowseColumnsOnce()
         return;
     }
 
-    iprintf("SqlRuntime: browsing columns in %s.%s\r\n", cfg.database, cfg.table);
+    SQL_RT_LOG("SqlRuntime: browsing columns in %s.%s\r\n", cfg.database, cfg.table);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
         tdsl::netburner_driver::e_driver_error_code::connection_failed;
@@ -475,14 +539,12 @@ static void SqlBrowseColumnsOnce()
                  static_cast<unsigned long>(catalog.column_count), cfg.table);
     }
 
-    iprintf("SqlRuntime: column browse complete, %lu column(s)\r\n",
+    SQL_RT_LOG("SqlRuntime: column browse complete, %lu column(s)\r\n",
             static_cast<unsigned long>(catalog.column_count));
 }
 
 static void SqlTestConnectionOnce()
 {
-    sql_busy_guard busy_guard;
-
     ResetSqlDriver();
 
     g_connection_status.ready   = false;
@@ -507,7 +569,7 @@ static void SqlTestConnectionOnce()
         return;
     }
 
-    iprintf("SqlRuntime: testing connection to %s:%u db=%s\r\n", cfg.server,
+    SQL_RT_LOG("SqlRuntime: testing connection to %s:%u db=%s\r\n", cfg.server,
             static_cast<unsigned>(cfg.port), cfg.database);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
@@ -517,7 +579,7 @@ static void SqlTestConnectionOnce()
         g_connection_status.ready = true;
         snprintf(g_connection_status.message, sizeof(g_connection_status.message),
                  "Connection failed (%d).", static_cast<int>(connect_err));
-        iprintf("SqlRuntime: connection test failed (%d)\r\n", static_cast<int>(connect_err));
+        SQL_RT_FAIL("SqlRuntime: connection test failed (%d)\r\n", static_cast<int>(connect_err));
         return;
     }
 
@@ -530,13 +592,11 @@ static void SqlTestConnectionOnce()
     g_connection_status.success = true;
     snprintf(g_connection_status.message, sizeof(g_connection_status.message),
              "Connected to %s. Settings are ready to save.", cfg.server);
-    iprintf("SqlRuntime: connection test succeeded\r\n");
+    SQL_RT_LOG("SqlRuntime: connection test succeeded\r\n");
 }
 
 static void SqlBrowseDatabasesOnce()
 {
-    sql_busy_guard busy_guard;
-
     ResetSqlDriver();
 
     if (!tdsl::endian_self_test()) {
@@ -559,7 +619,7 @@ static void SqlBrowseDatabasesOnce()
         return;
     }
 
-    iprintf("SqlRuntime: browsing databases on %s\r\n", cfg.server);
+    SQL_RT_LOG("SqlRuntime: browsing databases on %s\r\n", cfg.server);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
         tdsl::netburner_driver::e_driver_error_code::connection_failed;
@@ -595,14 +655,12 @@ static void SqlBrowseDatabasesOnce()
                  static_cast<unsigned long>(catalog.database_count));
     }
 
-    iprintf("SqlRuntime: database browse complete, %lu database(s)\r\n",
+    SQL_RT_LOG("SqlRuntime: database browse complete, %lu database(s)\r\n",
             static_cast<unsigned long>(catalog.database_count));
 }
 
 static void SqlExecuteMutationOnce()
 {
-    sql_busy_guard busy_guard;
-
     ResetSqlDriver();
 
     sql_result_store & store = SqlResultsGet();
@@ -630,8 +688,9 @@ static void SqlExecuteMutationOnce()
         return;
     }
 
-    iprintf("SqlRuntime: executing confirmed write\r\n");
-    iprintf("SqlRuntime: %s\r\n", g_pending_mutation.sql);
+    ClearLastSqlError();
+    SQL_RT_LOG("SqlRuntime: executing confirmed write\r\n");
+    SQL_RT_LOG("SqlRuntime: %s\r\n", g_pending_mutation.sql);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
         tdsl::netburner_driver::e_driver_error_code::connection_failed;
@@ -640,6 +699,8 @@ static void SqlExecuteMutationOnce()
         store.success = false;
         snprintf(store.status, sizeof(store.status), "SQL login failed (%d)",
                  static_cast<int>(connect_err));
+        SQL_RT_FAIL("SqlRuntime: write login failed (%d) sql=%s\r\n",
+                    static_cast<int>(connect_err), g_pending_mutation.sql);
         return;
     }
 
@@ -657,48 +718,71 @@ static void SqlExecuteMutationOnce()
     if (store.success) {
         snprintf(store.status, sizeof(store.status), "Write completed: %s",
                  g_pending_mutation.summary);
-        iprintf("SqlRuntime: write complete\r\n");
+        SQL_RT_LOG("SqlRuntime: write complete\r\n");
+#ifdef NB_GATEWAY_MICRO800
+        {
+            const uint64_t eid = gateway::TakeInflightEventId();
+            if (eid != 0) {
+                gateway::NotifySqlCommitted(eid);
+            }
+        }
+#endif
         SqlRuntimeClearPendingMutation();
     }
     else {
-        strncpy(store.status, "Write failed.", sizeof(store.status) - 1);
-        iprintf("SqlRuntime: write failed\r\n");
+        if (g_last_sql_error[0]) {
+            strncpy(store.status, g_last_sql_error, sizeof(store.status) - 1);
+            store.status[sizeof(store.status) - 1] = '\0';
+            SQL_RT_FAIL("SqlRuntime: write failed: %s\r\n  sql: %s\r\n", g_last_sql_error,
+                        g_pending_mutation.sql);
+        } else {
+            snprintf(store.status, sizeof(store.status),
+                     "Write failed (TDS status=0x%X, rows=%lu)",
+                     static_cast<unsigned>(query_result.status.value),
+                     static_cast<unsigned long>(query_result.affected_rows));
+            SQL_RT_FAIL("SqlRuntime: write failed (no INFO token): status=0x%X rows=%lu sql=%s\r\n",
+                        static_cast<unsigned>(query_result.status.value),
+                        static_cast<unsigned long>(query_result.affected_rows),
+                        g_pending_mutation.sql);
+        }
+#ifdef NB_GATEWAY_MICRO800
+        // Leave event pending for retry with backoff (avoids busy-spin QUERY RUNNING loop).
+        gateway::NotifySqlWriteFailed();
+#endif
     }
 }
 
 static void SqlRunOnce()
 {
+    // Keep g_browse_job set for the duration of the work so the UI can distinguish
+    // catalog browse / connection test from a real query (IsRunningQuery).
+    // Clear busy+job together at scope end so HTTP cannot observe busy with job NONE.
+    sql_run_scope_guard scope_guard;
+
     if (g_browse_job == SQL_BROWSE_TABLES) {
-        g_browse_job = SQL_BROWSE_NONE;
         SqlBrowseTablesOnce();
         return;
     }
 
     if (g_browse_job == SQL_BROWSE_DATABASES) {
-        g_browse_job = SQL_BROWSE_NONE;
         SqlBrowseDatabasesOnce();
         return;
     }
 
     if (g_browse_job == SQL_BROWSE_COLUMNS) {
-        g_browse_job = SQL_BROWSE_NONE;
         SqlBrowseColumnsOnce();
         return;
     }
 
     if (g_browse_job == SQL_TEST_CONNECTION) {
-        g_browse_job = SQL_BROWSE_NONE;
         SqlTestConnectionOnce();
         return;
     }
 
     if (g_browse_job == SQL_EXECUTE_MUTATION) {
-        g_browse_job = SQL_BROWSE_NONE;
         SqlExecuteMutationOnce();
         return;
     }
-
-    sql_busy_guard busy_guard;
 
     ResetSqlDriver();
 
@@ -707,7 +791,7 @@ static void SqlRunOnce()
         store.ready              = true;
         store.success            = false;
         strncpy(store.status, "Endian self-test failed.", sizeof(store.status) - 1);
-        iprintf("SqlRuntime: endian self-test failed\r\n");
+        SQL_RT_FAIL("SqlRuntime: endian self-test failed\r\n");
         return;
     }
 
@@ -733,7 +817,7 @@ static void SqlRunOnce()
             store.ready   = true;
             store.success = false;
             strncpy(store.status, "Invalid table read settings.", sizeof(store.status) - 1);
-            iprintf("SqlRuntime: invalid table builder settings\r\n");
+            SQL_RT_FAIL("SqlRuntime: invalid table builder settings\r\n");
             return;
         }
         query_text = g_query_buf;
@@ -742,7 +826,7 @@ static void SqlRunOnce()
         store.ready   = true;
         store.success = false;
         strncpy(store.status, "SQL query is empty.", sizeof(store.status) - 1);
-        iprintf("SqlRuntime: empty query\r\n");
+        SQL_RT_FAIL("SqlRuntime: empty query\r\n");
         return;
     }
 
@@ -752,11 +836,11 @@ static void SqlRunOnce()
         store.success = false;
         strncpy(store.status, "Server, port, user, and database are required.",
                 sizeof(store.status) - 1);
-        iprintf("SqlRuntime: missing connection fields\r\n");
+        SQL_RT_FAIL("SqlRuntime: missing connection fields\r\n");
         return;
     }
 
-    iprintf("SqlRuntime: connecting to %s:%u db=%s\r\n", cfg.server,
+    SQL_RT_LOG("SqlRuntime: connecting to %s:%u db=%s\r\n", cfg.server,
             static_cast<unsigned>(cfg.port), cfg.database);
 
     tdsl::netburner_driver::e_driver_error_code connect_err =
@@ -766,14 +850,15 @@ static void SqlRunOnce()
         store.success = false;
         snprintf(store.status, sizeof(store.status), "SQL login failed (%d)",
                  static_cast<int>(connect_err));
-        iprintf("SqlRuntime: connect/login failed (%d)\r\n", static_cast<int>(connect_err));
+        SQL_RT_FAIL("SqlRuntime: connect/login failed (%d) server=%s db=%s\r\n",
+                    static_cast<int>(connect_err), cfg.server, cfg.database);
         return;
     }
 
     g_driver.option_set_read_column_names(true);
 
-    iprintf("SqlRuntime: running query\r\n");
-    iprintf("SqlRuntime: %s\r\n", query_text);
+    SQL_RT_LOG("SqlRuntime: running query\r\n");
+    SQL_RT_LOG("SqlRuntime: %s\r\n", query_text);
 
     const unsigned long query_start_ticks = TimeTick;
     const auto query_result =
@@ -791,11 +876,11 @@ static void SqlRunOnce()
 
     if (!query_result) {
         snprintf(store.status, sizeof(store.status), "Query failed on %s.", cfg.server);
-        iprintf("SqlRuntime: query failed\r\n");
+        SQL_RT_FAIL("SqlRuntime: query failed: %s\r\n", query_text);
         return;
     }
 
-    iprintf("SqlRuntime: query complete, %lu row(s)\r\n",
+    SQL_RT_LOG("SqlRuntime: query complete, %lu row(s)\r\n",
             static_cast<unsigned long>(store.row_count));
 }
 
@@ -865,12 +950,12 @@ bool SqlRuntimeSaveCurrentConfig()
     if (saved) {
         strncpy(g_connection_status.message, "Settings saved to NV flash.",
                 sizeof(g_connection_status.message) - 1);
-        iprintf("SqlRuntime: settings saved to NV flash\r\n");
+        SQL_RT_LOG("SqlRuntime: settings saved to NV flash\r\n");
     }
     else {
         strncpy(g_connection_status.message, "Saved-settings error.",
                 sizeof(g_connection_status.message) - 1);
-        iprintf("SqlRuntime: failed to save settings\r\n");
+        SQL_RT_FAIL("SqlRuntime: failed to save settings\r\n");
     }
 
     return saved;
@@ -905,7 +990,14 @@ bool SqlRuntimeIsBusy()
 
 bool SqlRuntimeIsRunningQuery()
 {
-    return g_busy && (g_browse_job == SQL_BROWSE_NONE || g_browse_job == SQL_EXECUTE_MUTATION);
+    // Browse/test/mutations keep their own job flags; only manual SELECT/query
+    // counts as "query running" in the header/banner.
+    return g_busy && g_browse_job == SQL_BROWSE_NONE;
+}
+
+bool SqlRuntimeIsExecutingMutation()
+{
+    return g_busy && g_browse_job == SQL_EXECUTE_MUTATION;
 }
 
 bool SqlRuntimeIsTestingConnection()
@@ -1043,12 +1135,23 @@ void SqlRuntimeRequestExecutePendingMutation()
 
 void SqlRuntimeUpdateConfig(const sql_runtime_config & cfg)
 {
-    if (cfg.database[0] != '\0' && !SqlCatalogTablesMatchDatabase(cfg.database)) {
+    // Invalidate catalogs only when the destination identity changes. Using
+    // Matches() here also treated failed browses as "mismatch" and cleared them,
+    // which made the maps page re-request forever on SQL errors.
+    const sql_table_catalog &tables = SqlCatalogGet();
+    if (cfg.database[0] != '\0' && tables.database[0] != '\0' &&
+        strcmp(tables.database, cfg.database) != 0) {
         SqlCatalogInvalidateTables();
     }
 
-    if (cfg.database[0] != '\0' && cfg.table[0] != '\0' &&
-        !SqlColumnCatalogMatches(cfg.database, cfg.table)) {
+    const sql_column_catalog &cols = SqlColumnCatalogGet();
+    if (cfg.table[0] == '\0') {
+        if (cols.database[0] != '\0' || cols.table[0] != '\0' || cols.ready) {
+            SqlColumnCatalogInvalidate();
+        }
+    } else if (cfg.database[0] != '\0' &&
+               (cols.database[0] != '\0' || cols.table[0] != '\0') &&
+               (strcmp(cols.database, cfg.database) != 0 || strcmp(cols.table, cfg.table) != 0)) {
         SqlColumnCatalogInvalidate();
     }
 

@@ -14,6 +14,8 @@ This repository lets embedded NetBurner applications talk to SQL Server without 
 | **Network abstraction** | `libraries/include/tdslite-net/` | Generic I/O base + NetBurner TCP implementation |
 | **Umbrella header** | `libraries/include/TDSLite/tdslite.h` | Single include for firmware projects |
 | **Make integration** | `libraries/TDSLite/library.mak` | Adds include paths to your NetBurner makefile |
+| **Micro800 client (optional)** | `libraries/Micro800Client/` | EtherNet/IP / CIP tag client for Allen-Bradley Micro800 |
+| **HSES client (optional)** | `libraries/HsesClient/` | Motoman High-Speed Ethernet Server UDP client (port 10040) |
 | **Reference firmware** | `examples/NetBurner_MSSQL_Client/` | Web-based SQL browser, query runner, guided writes |
 | **Patch log** | [`PATCHES.md`](PATCHES.md) | Changes applied to upstream tdslite for NetBurner GCC |
 | **Deep docs** | [`docs/`](docs/) | Architecture, integration, web UI, and build guides |
@@ -119,6 +121,14 @@ void UserMain(void *pd)
 
 Full integration guide: [`docs/library-integration.md`](docs/library-integration.md)
 
+### Optional Micro800 / EtherNet/IP client
+
+An optional sibling library provides Micro800 tag scan/read/write/browse (sourced from NetBurnerGateway; REAJet excluded). Enable with `LIBS_MICRO800 := 1` — see [`docs/micro800-integration.md`](docs/micro800-integration.md).
+
+### Optional Motoman HSES client
+
+An optional sibling library is a NetBurner port of MotoHSES (Motoman High-Speed Ethernet Server, UDP **10040**). Enable with `LIBS_HSES := 1` — see [`docs/hses-integration.md`](docs/hses-integration.md).
+
 ---
 
 ## Architecture at a glance
@@ -174,6 +184,8 @@ NetBurner-specific changes are documented in [`PATCHES.md`](PATCHES.md) and summ
 | [Getting started](docs/getting-started.md) | Build, flash, configure SQL Server, first query |
 | [Architecture](docs/architecture.md) | Library layers, example app modules, data flow |
 | [Library integration](docs/library-integration.md) | Add TDSLite to a new NetBurner project |
+| [Micro800 integration](docs/micro800-integration.md) | Optional Micro800 EtherNet/IP / CIP client |
+| [HSES integration](docs/hses-integration.md) | Optional Motoman HSES UDP client |
 | [Example firmware](docs/example-firmware.md) | SQL runtime, NV storage, catalogs, job queue |
 | [Web UI](docs/web-ui.md) | Pages, CPPCALL handlers, query/write workflows |
 | [Build system](docs/build-system.md) | Make, comphtml, generated files, clean builds |

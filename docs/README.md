@@ -9,6 +9,8 @@ This folder contains implementation and usage guides for the NetBurner_MSSQL_Cli
 | [Getting started](getting-started.md) | New users | Build, flash, configure, first query |
 | [Architecture](architecture.md) | Developers | System design, modules, threading model |
 | [Library integration](library-integration.md) | Firmware authors | Add TDSLite to your own NetBurner project |
+| [Micro800 integration](micro800-integration.md) | Firmware authors | Optional EtherNet/IP / CIP Micro800 client |
+| [HSES integration](hses-integration.md) | Firmware authors | Optional Motoman HSES UDP client |
 | [Example firmware](example-firmware.md) | Contributors | Reference app internals (`sql_runtime`, NV, catalogs) |
 | [Web UI](web-ui.md) | UI / backend work | Multipage app, CPPCALL, forms, safety rules |
 | [Build system](build-system.md) | Build / CI | Make, comphtml, artifacts, platform switches |

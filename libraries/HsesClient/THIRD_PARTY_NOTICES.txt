@@ -1,0 +1,17 @@
+Notices for HsesClient
+======================
+
+This library is a NetBurner port of MotoHSES (moto_hses.h / moto_hses.cpp),
+the author's MIT-licensed Motoman / Yaskawa High-Speed Ethernet Server (HSES)
+UDP client.
+
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+License: MIT (see header of moto_hses.h)
+
+Adaptations for NetBurner:
+  - UDP via CreateRxUdpSocket / sendto4 / recvfrom4 / select
+  - Fixed payload/error buffers instead of std::vector / std::string
+  - File-control helpers (UDP 10041 streaming) not included in this port
+
+Yaskawa and Motoman are trademarks of their respective owners. Protocol
+enablement is described in Yaskawa High-Speed Ethernet Server documentation.

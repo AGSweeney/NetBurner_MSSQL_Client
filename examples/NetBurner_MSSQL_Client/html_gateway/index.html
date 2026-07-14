@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Micro800 MSSQL Gateway</title>
+<!--CPPCALL ShowAutoRefresh -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>Micro800 → MSSQL Gateway</h1>
+      <span class="meta"><!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <!--CPPCALL ShowAppNav -->
+  </div></nav>
+</header>
+<main class="nb-page nb-page-compact">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-dashboard-grid">
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>1. SQL Server</span></div>
+      <p>Set host, credentials, and database. Test the connection before enabling the gateway.</p>
+      <a class="nb-btn" href="configure.html">Configure SQL</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>2. PLCs</span></div>
+      <p>Scan EtherNet/IP for Micro800 controllers and add the ones this gateway should poll.</p>
+      <a class="nb-btn" href="plc.html">Manage PLCs</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>3. SQL Maps</span></div>
+      <p>Browse PLC tags, then define trigger/ACK handshake mappings that INSERT or UPDATE MSSQL.</p>
+      <a class="nb-btn" href="sql_maps.html">Edit Mappings</a>
+    </div>
+    <div class="nb-card nb-dashboard-card">
+      <div class="nb-card-header"><span>4. Gateway</span></div>
+      <p>Enable the runtime, watch handshake state, queue depth, and last errors.</p>
+      <a class="nb-btn" href="gateway.html">Open Gateway</a>
+    </div>
+  </div>
+</main>
+<footer class="nb-footer"><span>You can do that with a NetBurner!</span></footer>
+</body>
+</html>

@@ -9,6 +9,16 @@
 #include <config_obj.h>
 #include <config_server.h>
 
+// Serial console chatter for NV save/clear. Set to 1 to re-enable.
+#ifndef SQL_RUNTIME_SERIAL_LOG
+#define SQL_RUNTIME_SERIAL_LOG 0
+#endif
+#if SQL_RUNTIME_SERIAL_LOG
+#define SQL_NV_LOG(...) iprintf(__VA_ARGS__)
+#else
+#define SQL_NV_LOG(...) ((void)0)
+#endif
+
 static config_obj g_sql_nv_root{appdata, "SqlSettings", "SQL connection settings"};
 
 static config_bool g_sql_nv_valid{g_sql_nv_root, false, "Valid", "Saved SQL settings present"};
@@ -128,7 +138,7 @@ bool SqlNvSave(const sql_runtime_config & cfg)
     g_sql_nv_valid             = true;
 
     SaveConfigToStorage();
-    iprintf("SqlNv: saved SQL settings to AppData/SqlSettings\r\n");
+    SQL_NV_LOG("SqlNv: saved SQL settings to AppData/SqlSettings\r\n");
     return true;
 }
 
@@ -164,6 +174,6 @@ bool SqlNvClear()
     g_sql_nv_last_verified     = 0;
 
     SaveConfigToStorage();
-    iprintf("SqlNv: cleared SQL settings from AppData/SqlSettings\r\n");
+    SQL_NV_LOG("SqlNv: cleared SQL settings from AppData/SqlSettings\r\n");
     return true;
 }

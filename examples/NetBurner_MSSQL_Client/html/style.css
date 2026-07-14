@@ -887,6 +887,111 @@ p { margin: 0 0 14px; color: var(--nb-gray-700); }
   -webkit-overflow-scrolling: touch;
 }
 
+/* Gateway list tables (PLCs, mappings, diagnostics). */
+.nb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.35;
+  table-layout: auto;
+}
+
+.nb-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nb-gray-500);
+  background: var(--nb-gray-50);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--nb-gray-200);
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.nb-table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid var(--nb-gray-100);
+  vertical-align: middle;
+  color: var(--nb-carbon);
+}
+
+.nb-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.nb-table tbody tr:hover td {
+  background: var(--nb-gray-50);
+}
+
+.nb-table .nb-col-id {
+  width: 3.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--nb-gray-500);
+}
+
+.nb-table .nb-col-name {
+  min-width: 12rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.nb-table .nb-col-ip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-table .nb-col-num {
+  width: 5.5rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nb-table .nb-col-status {
+  width: 5.5rem;
+  white-space: nowrap;
+}
+
+.nb-table .nb-col-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.nb-table .nb-col-actions .nb-btn-inline {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.nb-table .nb-col-actions .nb-inline-form {
+  display: inline-block;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.nb-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nb-pill-ok {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.nb-pill-off {
+  background: var(--nb-gray-100);
+  color: var(--nb-gray-500);
+}
+
 .nb-spec-table {
   width: max-content;
   min-width: 100%;

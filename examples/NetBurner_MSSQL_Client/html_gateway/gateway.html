@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gateway Overview</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>Micro800 Gateway</h1>
+      <span class="meta"><!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <!--CPPCALL ShowAppNav -->
+  </div></nav>
+</header>
+<main class="nb-page">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-card">
+    <div class="nb-card-header"><span>Gateway overview</span></div>
+    <p>Level-held trigger/ACK handshake. Events are queued to onboard EFFS flash before ACK
+       (RAM fallback if flash is unavailable). SQL drains asynchronously.</p>
+    <!--CPPCALL ShowGatewayOverview -->
+  </div>
+</main>
+<footer class="nb-footer"><span>You can do that with a NetBurner!</span></footer>
+</body>
+</html>

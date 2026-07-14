@@ -82,6 +82,7 @@ void SqlRuntimeRequestBrowseDatabases();
 void SqlRuntimeRequestBrowseColumns();
 void SqlRuntimeRequestExecutePendingMutation();
 bool SqlRuntimeIsRunningQuery();
+bool SqlRuntimeIsExecutingMutation();
 bool SqlRuntimeIsTestingConnection();
 bool SqlRuntimeIsBrowsingTables();
 bool SqlRuntimeIsBrowsingDatabases();

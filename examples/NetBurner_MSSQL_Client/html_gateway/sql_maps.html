@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 Adam G. Sweeney <agsweeney@gmail.com>
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Mappings</title>
+<link rel="stylesheet" href="style.css">
+<!--CPPCALL ShowSqlMapsAutoRefresh -->
+</head>
+<body>
+<header class="nb-header">
+  <div class="nb-header-inner">
+    <img class="nb-header-logo" src="images/logo.png" alt="NetBurner">
+    <div class="nb-title-block">
+      <h1>SQL Mappings</h1>
+      <span class="meta"><!--CPPCALL ShowHeaderTarget --></span>
+    </div>
+    <!--CPPCALL ShowHeaderStatus -->
+  </div>
+  <nav class="nb-main-nav"><div class="nb-main-nav-inner">
+    <!--CPPCALL ShowAppNav -->
+  </div></nav>
+</header>
+<main class="nb-page">
+  <p class="nb-workflow-status"><!--CPPCALL ShowQueryStatus --></p>
+  <div class="nb-card">
+    <div class="nb-card-header"><span>SQL mapping builder</span></div>
+    <p>Start with one mapping. Browse the SQL catalog for database → table → columns, then open
+       <strong>Browse PLC tags</strong> from mapping details to fill trigger/ACK/fields.</p>
+    <!--CPPCALL ShowSqlMapManager -->
+  </div>
+</main>
+<footer class="nb-footer"><span>You can do that with a NetBurner!</span></footer>
+<script>
+(function () {
+  var KEY = "nb.sqlMaps.scroll";
+
+  function saveScroll() {
+    try { sessionStorage.setItem(KEY, String(window.scrollY || window.pageYOffset || 0)); } catch (e) {}
+  }
+
+  function restoreScroll() {
+    try {
+      var y = sessionStorage.getItem(KEY);
+      if (y === null) { return; }
+      var n = parseInt(y, 10);
+      if (!isNaN(n)) { window.scrollTo(0, n); }
+      if (!document.querySelector('meta[http-equiv="refresh"]')) {
+        sessionStorage.removeItem(KEY);
+      }
+    } catch (e) {}
+  }
+
+  function stripTagsQuery() {
+    try {
+      if (!window.history || !window.history.replaceState) { return; }
+      var u = new URL(window.location.href);
+      if (!u.searchParams.has("tags")) { return; }
+      u.searchParams.delete("tags");
+      window.history.replaceState({}, "", u.pathname + u.search + u.hash);
+    } catch (e) {}
+  }
+
+  function openTagModal() {
+    var overlay = document.getElementById("nb-tag-modal");
+    if (!overlay) { return; }
+    overlay.hidden = false;
+    overlay.classList.add("nb-modal-open");
+  }
+
+  function closeTagModal() {
+    var overlay = document.getElementById("nb-tag-modal");
+    if (!overlay) { return; }
+    overlay.classList.remove("nb-modal-open");
+    overlay.hidden = true;
+    stripTagsQuery();
+  }
+
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target;
+    if (!form || !form.getAttribute) { return; }
+    var action = form.getAttribute("action") || "";
+    if (action.indexOf("gateway_map_browse") >= 0 ||
+        action.indexOf("gateway_tag_browse") >= 0 ||
+        action.indexOf("gateway_tag_use") >= 0) {
+      saveScroll();
+    }
+  }, true);
+
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.id) { return; }
+    if (t.id === "nb-open-tag-modal") {
+      openTagModal();
+    } else if (t.id === "nb-close-tag-modal" || t.id === "nb-done-tag-modal") {
+      closeTagModal();
+    } else if (t.id === "nb-tag-modal") {
+      closeTagModal();
+    }
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") { closeTagModal(); }
+  });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", restoreScroll);
+  } else {
+    restoreScroll();
+  }
+  window.addEventListener("load", restoreScroll);
+})();
+</script>
+</body>
+</html>
