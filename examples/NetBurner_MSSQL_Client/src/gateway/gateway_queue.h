@@ -29,6 +29,7 @@ struct QueueStats {
     uint32_t bytes_used{0};
     uint32_t bytes_budget{kQueueBudgetBytesDefault};
     uint32_t pending{0};
+    uint32_t pending_capacity{0};
     uint32_t committed{0};
     uint32_t quarantined{0};
     uint32_t dropped_or_full{0};

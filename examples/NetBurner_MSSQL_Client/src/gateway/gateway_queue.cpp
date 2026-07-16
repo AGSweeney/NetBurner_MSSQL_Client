@@ -27,7 +27,7 @@ constexpr uint8_t kFlagPending = 0;
 constexpr uint8_t kFlagCommitted = 1;
 constexpr uint8_t kFlagQuarantined = 2;
 constexpr size_t kRecHeaderSize = 24; // magic+flags+pad+id+len+crc
-enum { kRamFallbackSlots = 16 };
+enum { kRamFallbackSlots = 128 };
 
 struct IndexEntry {
     bool used{false};
@@ -63,6 +63,8 @@ bool g_inited = false;
 bool g_use_effs = false;
 uint64_t g_next_id = 1;
 uint32_t g_full_count = 0;
+uint32_t g_quarantine_total = 0;
+char g_last_quarantine_reason[64]{};
 uint32_t g_active_seg = 1;
 uint32_t g_bytes_used = 0;
 uint32_t g_seg_bytes[256]{}; // approximate size per segment number (1-based index use low)
@@ -529,13 +531,21 @@ bool RamPeek(CapturedEvent &ev, uint32_t &slotOut)
         RamSlot &s = g_ram[i];
         if (s.used && !s.committed && !s.quarantined) {
             if (Crc32(s.blob, s.blob_len) != s.crc) {
+                // Reclaim the slot — quarantined records must not permanently fill the ring.
                 s.quarantined = true;
+                s.used = false;
+                ++g_quarantine_total;
                 strncpy(s.quarantine_reason, "CRC mismatch", sizeof(s.quarantine_reason) - 1);
+                strncpy(g_last_quarantine_reason, "CRC mismatch", sizeof(g_last_quarantine_reason) - 1);
                 continue;
             }
             if (!DeserializeEvent(s.blob, s.blob_len, ev)) {
                 s.quarantined = true;
+                s.used = false;
+                ++g_quarantine_total;
                 strncpy(s.quarantine_reason, "Deserialize failed", sizeof(s.quarantine_reason) - 1);
+                strncpy(g_last_quarantine_reason, "Deserialize failed",
+                        sizeof(g_last_quarantine_reason) - 1);
                 continue;
             }
             slotOut = i;
@@ -554,6 +564,8 @@ bool QueueInit()
     memset(g_seg_bytes, 0, sizeof(g_seg_bytes));
     g_next_id = 1;
     g_full_count = 0;
+    g_quarantine_total = 0;
+    g_last_quarantine_reason[0] = '\0';
     g_active_seg = 1;
     g_bytes_used = 0;
     // Prefer RAM ring for soak / low-latency ACK. EFFS durable path remains in-tree
@@ -647,10 +659,19 @@ bool QueueQuarantine(uint64_t eventId, const char *reason)
     }
     for (int i = 0; i < kRamFallbackSlots; ++i) {
         if (g_ram[i].used && g_ram[i].event_id == eventId) {
-            g_ram[i].quarantined = true;
+            // Drop the payload and free the slot. Keeping used=true permanently
+            // filled the 16/32-slot ring after soak-test SQL failures → no ACK.
             if (reason) {
                 strncpy(g_ram[i].quarantine_reason, reason, sizeof(g_ram[i].quarantine_reason) - 1);
+                strncpy(g_last_quarantine_reason, reason, sizeof(g_last_quarantine_reason) - 1);
+            } else {
+                g_last_quarantine_reason[0] = '\0';
             }
+            g_ram[i].quarantined = false;
+            g_ram[i].committed = false;
+            g_ram[i].used = false;
+            g_ram[i].blob_len = 0;
+            ++g_quarantine_total;
             return true;
         }
     }
@@ -664,6 +685,7 @@ QueueStats QueueGetStats()
     st.next_event_id = g_next_id;
     st.dropped_or_full = g_full_count;
     st.backend = g_use_effs ? QueueBackend::Effs : QueueBackend::Ram;
+    st.pending_capacity = g_use_effs ? kMaxQueueRecords : kRamFallbackSlots;
 
     if (g_use_effs) {
         st.bytes_used = g_bytes_used;
@@ -681,35 +703,43 @@ QueueStats QueueGetStats()
             }
         }
     } else {
+        st.bytes_budget = static_cast<uint32_t>(kRamFallbackSlots) * kMaxSerializedEvent;
         for (int i = 0; i < kRamFallbackSlots; ++i) {
-            if (!g_ram[i].used && !g_ram[i].quarantined) {
+            if (!g_ram[i].used) {
                 continue;
             }
-            if (g_ram[i].used || g_ram[i].quarantined) {
-                ++st.record_count;
-                st.bytes_used += static_cast<uint32_t>(g_ram[i].blob_len);
-            }
-            if (g_ram[i].used && !g_ram[i].committed && !g_ram[i].quarantined) {
+            ++st.record_count;
+            st.bytes_used += static_cast<uint32_t>(g_ram[i].blob_len);
+            if (!g_ram[i].committed && !g_ram[i].quarantined) {
                 ++st.pending;
             }
-            if (g_ram[i].committed) {
-                ++st.committed;
-            }
-            if (g_ram[i].quarantined) {
-                ++st.quarantined;
-            }
         }
+        st.quarantined = g_quarantine_total;
+        st.committed = 0; // committed slots are freed immediately on RAM path
     }
 
-    const uint32_t pct = st.bytes_budget ? (st.bytes_used * 100u / st.bytes_budget) : 0;
-    if (st.pending >= kMaxQueueRecords || st.bytes_used >= st.bytes_budget) {
-        st.pressure = QueuePressure::Full;
-    } else if (pct >= 90 || st.pending > (kMaxQueueRecords * 9) / 10) {
-        st.pressure = QueuePressure::Critical;
-    } else if (pct >= 75 || st.pending > (kMaxQueueRecords * 3) / 4) {
-        st.pressure = QueuePressure::Warning;
+    if (g_use_effs) {
+        const uint32_t pct = st.bytes_budget ? (st.bytes_used * 100u / st.bytes_budget) : 0;
+        if (st.pending >= kMaxQueueRecords || st.bytes_used >= st.bytes_budget) {
+            st.pressure = QueuePressure::Full;
+        } else if (pct >= 90 || st.pending > (kMaxQueueRecords * 9) / 10) {
+            st.pressure = QueuePressure::Critical;
+        } else if (pct >= 75 || st.pending > (kMaxQueueRecords * 3) / 4) {
+            st.pressure = QueuePressure::Warning;
+        } else {
+            st.pressure = QueuePressure::Normal;
+        }
     } else {
-        st.pressure = QueuePressure::Normal;
+        // Pressure vs RAM slot capacity (not the EFFS record budget).
+        if (st.pending >= kRamFallbackSlots) {
+            st.pressure = QueuePressure::Full;
+        } else if (st.pending > (kRamFallbackSlots * 9) / 10) {
+            st.pressure = QueuePressure::Critical;
+        } else if (st.pending > (kRamFallbackSlots * 3) / 4) {
+            st.pressure = QueuePressure::Warning;
+        } else {
+            st.pressure = QueuePressure::Normal;
+        }
     }
     return st;
 }

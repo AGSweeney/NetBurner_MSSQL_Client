@@ -172,6 +172,13 @@ void StepMapping(MappingRuntime &rt, const MappingConfig &map, const PlcConfig &
         rt.capture_retry_count = 0;
         if (!QueueAppend(s_ev, err, sizeof(err))) {
             SetMapErr(rt, err[0] ? err : "Queue full");
+            const QueueStats qs = QueueGetStats();
+            iprintf("Gateway: ACK withheld — queue append failed (%s) pending=%lu quarantined=%lu "
+                    "full-drops=%lu pressure=%u\r\n",
+                    err[0] ? err : "Queue full", static_cast<unsigned long>(qs.pending),
+                    static_cast<unsigned long>(qs.quarantined),
+                    static_cast<unsigned long>(qs.dropped_or_full),
+                    static_cast<unsigned>(qs.pressure));
             // Withhold ACK; retry capture/persist later.
             rt.state = HandshakeState::Backoff;
             rt.next_poll_tick = now + (TICKS_PER_SECOND / 5);
@@ -208,6 +215,8 @@ void StepMapping(MappingRuntime &rt, const MappingConfig &map, const PlcConfig &
         bool trig = false;
         if (!PlcReadBool(plc, map.trigger_tag, trig, err, sizeof(err))) {
             SetMapErr(rt, err);
+            rt.state = HandshakeState::Backoff;
+            rt.next_poll_tick = now + (TICKS_PER_SECOND / 2);
             return;
         }
         rt.trigger_value = trig;
@@ -231,9 +240,10 @@ void StepMapping(MappingRuntime &rt, const MappingConfig &map, const PlcConfig &
         rt.state = HandshakeState::Idle;
         break;
     case HandshakeState::Backoff:
-        if (static_cast<int32_t>(now - rt.next_poll_tick) >= 0) {
-            rt.state = HandshakeState::Initializing;
-        }
+        // RuntimePoll already waited until next_poll_tick before calling us, and it
+        // bumps next_poll_tick *before* StepMapping — so do not re-check the timer
+        // here (that comparison can never succeed and leaves the mapping stuck).
+        rt.state = HandshakeState::Initializing;
         break;
     case HandshakeState::Faulted:
         break;

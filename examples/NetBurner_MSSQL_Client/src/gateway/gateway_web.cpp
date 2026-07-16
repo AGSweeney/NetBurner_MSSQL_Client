@@ -991,10 +991,11 @@ void ShowGatewayOverview(int sock, PCSTR /*url*/)
              : qs.pressure == gateway::QueuePressure::Warning  ? "WARNING"
              : qs.pressure == gateway::QueuePressure::Fault    ? "FAULT"
                                                               : "normal");
-    fdprintf(sock, "<p>Queue bytes: %lu / %lu &nbsp; pending: %lu &nbsp; quarantined: %lu &nbsp; "
+    fdprintf(sock, "<p>Queue bytes: %lu / %lu &nbsp; pending: %lu / %lu &nbsp; quarantined(total): %lu &nbsp; "
                    "full-drops: %lu</p>",
              static_cast<unsigned long>(qs.bytes_used), static_cast<unsigned long>(qs.bytes_budget),
-             static_cast<unsigned long>(qs.pending), static_cast<unsigned long>(qs.quarantined),
+             static_cast<unsigned long>(qs.pending), static_cast<unsigned long>(qs.pending_capacity),
+             static_cast<unsigned long>(qs.quarantined),
              static_cast<unsigned long>(qs.dropped_or_full));
     fdprintf(sock, "<p>Next event id: %llu &nbsp; Inflight SQL: %s</p>",
              static_cast<unsigned long long>(qs.next_event_id), gateway::HasInflightEvent() ? "yes" : "no");
